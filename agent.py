@@ -9,8 +9,6 @@ Where you edit:   grep -n '✏' agent.py   (six marks, one per place)
 Steps and gates:  https://anthropicpartnerbasecamp.bts.com/
 """
 from __future__ import annotations
-import re
-from pathlib import Path
 from typing import Any, Dict, List
 from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
                      new_session, next_available_day, record_tool_result,
@@ -20,95 +18,8 @@ MAX_TOOL_CALLS = 8  # Larkspur's own build capped the loop here; then a human ta
 
 TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
 
-_FARE_RULES_PATH = Path(__file__).parent / "data" / "americas" / "fare_rules_excerpt.md"
-
-
-def fare_rules(section: str) -> str:
-    """Return one Handbook section (4 to 7) by number or by any part of its title.
-
-    Matches on title words because a caller asking about hotels will not know
-    that hotels are section 6. Errors come back as text that lists the valid
-    sections, so Claude can retry instead of the loop stalling.
-    """
-    sections = re.split(r"(?m)^(?=### )", _FARE_RULES_PATH.read_text(encoding="utf-8"))[1:]
-    parsed = []
-    for body in sections:
-        m = re.match(r"### (\d+)\.\s*(.*)", body)
-        parsed.append((m.group(1), m.group(2).lower(), body.strip()))
-    labels = ", ".join(f"{n} ({t})" for n, t, _ in parsed)
-    query = re.sub(r"^section\s+", "", (section or "").strip().lower()).rstrip(".")
-    if not query:
-        return f"section is required. Available sections: {labels}."
-    for number, title, body in parsed:
-        if query == number or query in title:
-            return body
-    for _, _, body in parsed:  # last resort: a word from the body, like "hotel"
-        if query in body.lower():
-            return body
-    return f"No section matches {section!r}. Available sections: {labels}."
-
-
-EXTRA_TOOLS: List[Dict[str, Any]] = [    # ✏️ Build 2, step 2.1: schemas for the tools you add
-    {
-        "name": "fare_rules",
-        "description": (
-            "Quote the Larkspur Handbook text behind an entitlement, so a customer can be "
-            "told WHY a rule applies in the airline's own words. Sections: 4 fare families "
-            "(Basic, Main, Main Plus, First: changes, refunds, same-day change), 5 what "
-            "happens when we delay, cancel or divert (rebooking windows, refund and "
-            "diversion rules), 6 care while you wait (meal credits, hotel, goodwill), and "
-            "7 what chat automation will not do (what only a person handles). Use it when "
-            "the customer asks what a rule says or why something is or is not covered. It "
-            "does NOT decide what this customer is owed: check_policy does that from the "
-            "booking. Read-only; it never changes a booking and states no amounts for a "
-            "particular passenger."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "section": {
-                    "type": "string",
-                    "description": "Section number (4 to 7) or any word from its title, e.g. 'hotel' or 'care while you wait'",
-                },
-            },
-            "required": ["section"],
-        },
-    },
-    {
-        "name": "next_available_day",
-        "description": (
-            "Find the earliest date with an open seat on one route in one cabin. Use it "
-            "when the customer asks ONLY which day they can fly, and does not want flight "
-            "options, times or a rebooking yet: it is a quick, date-only answer. If they "
-            "want flights, times, seats or to rebook, use search_alternatives instead: "
-            "its options carry times and seats, which this tool does not. "
-            "It covers ONE "
-            "segment per call: take origin, dest, date and cabin from the disrupted "
-            "segment that lookup_booking returned, never from a segment already flown. "
-            "It answers a date only: no departure or arrival time, no flight number, "
-            "and no seat held, so never promise a customer a specific flight or a "
-            "connection from it. It checks for one passenger, so it does not confirm "
-            "room for a party. For a trip with more than one segment left, call it for "
-            "the first remaining segment, then for the next using the date it returned, "
-            "and tell the customer the dates are not yet a confirmed connection. "
-            "Returns null when no seat is found."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "origin": {"type": "string", "description": "IATA code the segment departs from, e.g. DEN"},
-                "dest": {"type": "string", "description": "IATA code the segment arrives at, e.g. AUS"},
-                "date": {"type": "string", "description": "YYYY-MM-DD: the date to search from. For a first segment, the original travel date; for a later segment, the date returned for the one before."},
-                "cabin": {"type": "string", "enum": ["Y", "J"], "description": "Cabin on the booking: Y or J"},
-            },
-            "required": ["origin", "dest", "date"],
-        },
-    },
-]
-LOCAL_TOOLS: Dict[str, Any] = {          # ✏️ Build 2, step 2.1: the functions behind them
-    "next_available_day": next_available_day,
-    "fare_rules": fare_rules,
-}
+EXTRA_TOOLS: List[Dict[str, Any]] = []   # ✏️ Build 2, step 2.1: schemas for the tools you add
+LOCAL_TOOLS: Dict[str, Any] = {}         # ✏️ Build 2, step 2.1: the functions behind them
 
 
 def text_of(response) -> str:
@@ -171,7 +82,7 @@ def run_agent(pnr: str, last_name: str, message: str) -> str:            # ✏�
 def tool_list() -> List[Dict[str, Any]]:                   # ✏️ Build 2, step 2.2
     """Given. Exactly what Claude is offered on every turn; run.py --show-tools
     prints this list."""
-    return build_tools() + EXTRA_TOOLS
+    return build_tools() + EXTRA_TOOLS + mcp_client.tools()
 
 
 # ──────────────────────────────────────────────────────────────────────────────
