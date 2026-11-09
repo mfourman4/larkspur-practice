@@ -16,7 +16,27 @@ from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
 
 MAX_TOOL_CALLS = 8  # Larkspur's own build capped the loop here; then a human takes over.
 
-TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
+TONE_ADDENDUM = """
+
+When a customer's message contains abuse or threatening language aimed at Larkspur or its
+staff, including a threat to take legal action, go to the press, or post publicly, send one
+calm boundary message, then hand the case to a person.
+
+When a customer threatens legal or regulatory action, do not argue entitlements. Hand the
+case to a person, and put the customer's own words into the handover summary verbatim and
+in quotation marks, never paraphrased.
+
+Both of those are high priority. The escalation tool has no priority field, so write
+PRIORITY: HIGH at the start of the reason.
+
+Do not answer the underlying problem at all in that reply: no entitlements, no amounts, no
+options. Tell the customer their case has been recorded for a person on the team to pick up,
+and give them the reference. Do not say when or how that person will contact them, and
+do not promise a response; say only what has been done. Do not use the word escalate.
+
+This applies only to abuse and threats. A customer who is angry, frustrated or blunt about
+a bad situation is a normal contact. Help them as usual.
+"""                                      # ✏️ Build 4, step 4.1, intelligence goal
 
 EXTRA_TOOLS: List[Dict[str, Any]] = []   # ✏️ Build 2, step 2.1: schemas for the tools you add
 LOCAL_TOOLS: Dict[str, Any] = {}         # ✏️ Build 2, step 2.1: the functions behind them
