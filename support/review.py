@@ -981,7 +981,7 @@ def ask_for_observations(client, build: dict, model: str) -> list:
         # structured-output review doesn't need it; the budget buys observations.
         response = client.messages.create(
             model=model, max_tokens=4000, system=SYSTEM_PROMPT,
-            thinking={"type": "disabled"},
+            thinking={"type": "between_tools"},
             output_config={"format": {"type": "json_schema", "schema": OBS_SCHEMA}},
             messages=[{"role": "user", "content": prompt}],
         )
